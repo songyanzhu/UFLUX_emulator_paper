@@ -3713,11 +3713,7 @@ ax.plot(dfp.index, dfp['RECO(e)'], c = colors[1], label = 'RECO(e)')
 ax.fill_between(dfp.index, dfp['RECO(e)_25th'], dfp['RECO(e)_75th'], color = colors[1], alpha = 0.2)
 ax.plot(dfp.index, dfp['RECO(t)'], c = colors[2], label = 'RECO(t)')
 ax.fill_between(dfp.index, dfp['RECO(t)_25th'], dfp['RECO(t)_75th'], color = colors[2], alpha = 0.2)
-# # grey:
-# ax.plot(dfp.index, dfp['RECO(u)'], 'k-', label = 'RECO(u)')
-# ax.plot(dfp.index, dfp['RECO(e)'], 'k--', label = 'RECO(e)')
-# ax.plot(dfp.index, dfp['RECO(t)'], 'k:', label = 'RECO(t)')
-# end
+
 upper_legend(ax, nrows = 1, yloc = 1.15)
 ax.set_ylabel('Reco (gC m-2d-1)')
 
@@ -3725,21 +3721,12 @@ ufluxv2 = ufluxv2_a['NEP(u)_ind'].rename('NEP(u)').to_dataset().drop_vars('spati
 ufluxv2e = ufluxv2e_dd['nep'].drop_vars('spatial_ref')
 # ufluxv2e = ufluxv2e.where(ufluxv2e['NEP(e)'] > -10, np.nan)
 trendy = trendy_dd['nep'] # NEP direct from Trendy
-# trendy = xr.merge([
-#     (trendy_dd['gpp']['GPP(t)'] - trendy_dd['reco']['RECO(t)']).rename('NEP(t)').to_dataset(),
-#     trendy_dd['gpp']['GPP(t)_25th'] - trendy_dd['reco']['RECO(t)_25th'].rename('NEP(t)_25th').to_dataset(),
-#     trendy_dd['gpp']['GPP(t)_75th'] - trendy_dd['reco']['RECO(t)_75th'].rename('NEP(t)_75th').to_dataset()
-# ]) # NEP from Trendy GPP - Reco
+
 
 # ------------------------------------------------------------------------------
 
 fig, ax = setup_canvas(1, 1, figsize = (6, 4), fontsize = 10, labelsize = 10)
 
-# dfp = pd.concat([
-#     ufluxv2.where(cond, np.nan).mean(dim = ['longitude', 'latitude']).to_dataframe(),
-#     ufluxv2e.where(cond, np.nan).mean(dim = ['longitude', 'latitude']).to_dataframe(),
-#     trendy.where(cond, np.nan).mean(dim = ['longitude', 'latitude']).to_dataframe(),
-# ], axis = 1).drop(columns = ['spatial_ref'], axis = 1)
 
 dfp = pd.concat([
     (ufluxv2.where(cond, np.nan) * coef_mat).sum(dim = ['longitude', 'latitude']).to_dataframe() / coef_PgC_gC * 365,
@@ -3756,11 +3743,7 @@ ax.plot(dfp.index, dfp['NEP(e)'], c = colors[1], label = 'NEP(e)')
 ax.fill_between(dfp.index, dfp['NEP(e)_25th'], dfp['NEP(e)_75th'], color = colors[1], alpha = 0.2)
 ax.plot(dfp.index, dfp['NEP(t)'], c = colors[2], label = 'NEP(t)')
 ax.fill_between(dfp.index, dfp['NEP(t)_25th'], dfp['NEP(t)_75th'], color = colors[2], alpha = 0.2)
-# # grey:
-# ax.plot(dfp.index, dfp['NEP(u)'], 'k-', label = 'NEP(u)')
-# ax.plot(dfp.index, dfp['NEP(e)'], 'k--', label = 'NEP(e)')
-# ax.plot(dfp.index, dfp['NEP(t)'], 'k:', label = 'NEP(t)')
-# end
+
 upper_legend(ax, nrows = 1, yloc = 1.15)
 ax.set_ylabel('NEP (gC m-2d-1)')
 
@@ -5063,15 +5046,6 @@ from py_banshee.prediction import inference
 
 correlation_matrix = data.corr(method="pearson")
 
-# # Optional: Visualize with a heatmap
-# plt.figure(figsize=(8, 6))
-# sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f")
-# plt.title("Pearson Correlation Coefficients")
-# plt.show()
-
-#-----------------------------------------------------------------------------
-# Function 1 - bn_rankcorr - Conditional rank correlation matrix
-#-----------------------------------------------------------------------------
 
 R = bn_rankcorr(parent_cell,        # structure of the BN
                 data,               # matrix of data
@@ -5090,76 +5064,13 @@ sns.heatmap(dfd, annot=True, cmap="rocket_r", fmt=".2f")
 ax.set_title("model difference")
 fig.savefig(fig_name + '_model_difference.png')
 
-#-----------------------------------------------------------------------------
-# Function 2 - bn_visualize - Plot of the Bayesian Network
-#-----------------------------------------------------------------------------
+
 
 bn_visualize2(parent_cell,           # structure of the BN
              R,                     # the rank correlation matrix (function 1)
              data.columns,          # names of variables
              fig_name = fig_name)   # figure name
-# The plot presents the BN with 5 nodes and 7 arcs, with the (conditional)
-# rank correlations indicated on the arcs.
 
-# download_temp_storage()
-# clear_temp_storage()
-
-"""Further exploration"""
-
-# bn_visualize(parent_cell,                       # structure of the BN
-#              R,                                 # the rank correlation matrix
-#              data.columns,                      # names of variables
-#              data = data,                       # DataFrame with data
-#              fig_name = fig_name + '_margins')  # figure name
-# # The plot presents the BN with 5 nodes and 7 arcs, with the (conditional)
-# # rank correlations indicated on the arcs. In this plot also the marginal
-# # distributions for each variable are incorporated.
-
-# #-----------------------------------------------------------------------------
-# # Function 3 - cvm_statistics - test goodness-of-fit of the Gaussian copula
-# #-----------------------------------------------------------------------------
-
-# M = cvm_statistic(data,                   # DataFrame with data
-#                   names = data.columns,   # names of variables
-#                   plot = True,               # create a plot (0=don't create plot)
-#                   fig_name = fig_name)    # figure name
-# # The results of the goodness-of-fit test in terms of Cramer-von Mises
-# # statistic highlight that the Gaussian copula is in majority of cases the
-# # most suitable for representing the dependency between variables,
-# # especially for the variable of interest (safety). This is important as
-# # the method utilizes the Gaussian copula for dependence modelling.
-
-# #-----------------------------------------------------------------------------
-# # Function 4 - gaussian_distance - measuring d-calibration score
-# #-----------------------------------------------------------------------------
-
-# D_ERC,B_ERC,D_BNRC,B_BNRC = gaussian_distance(
-#                             R,        # the rank correlation matrix
-#                             data,     # DataFrame with data
-#                             4000,     # number of samples drawn d-Cal(ERC,NRC)
-#                             400,      # number of samples drawn d-Cal(NRC,BNRC)
-#                             1000,     # number of iterations to compute CI
-#                             Plot=True,          # create a plot (0=don't create plot)
-#                             Type='H',           # take Hellinger distance (default)
-#                             fig_name=fig_name)  # figure name
-# # draw 4000 samples of the normal distribution and perform 1000 iterations to
-# # obtain the distribution of the d-cal score (ERC,NRC)
-# # draw 400 samples of the normal distribution and perform 1000 iterations to
-# # obtain the distribution of the d-cal score (NRC,BNRC)
-
-
-# # The d-calibration score of the empirical rank correlation matrix is
-# # inside the 90# confidence interval of the determinant of the empirical
-# # The d-calibration score of the BN's rank correlation matrix is well within
-# # the 90# confidence interval of the determinant of the random normal distribution
-# # sampled for the same correlation matrix. This supports the assumptions of
-# # a joint normal copula used in the BN model. It should be noted that the
-# # test is sensitive to the number of samples drawn as well as the number of
-# # iterations and is rather severe for large datasets.
-
-#-----------------------------------------------------------------------------
-# Function 5 - inference - making inference with the BN model
-#-----------------------------------------------------------------------------
 
 condition=np.arange(1, len(names)) #conditionalized variables, all except for safety (predict)
 values = data.iloc[:,condition].to_numpy() # data for conditionalization
@@ -5193,11 +5104,6 @@ MBE = np.mean(y_pred-y_original)
 # Calculate root mean square error
 RMSE = (np.mean((y_pred-y_original)**2))**(1/2)
 
-# The coefficient of determination between modelled and observed safety in
-# US cities is rather low (0.21), but the average error equals only around
-# a quarter of the average value of safety, and there is almost no bias.
-# However, for proper validation, if sufficient data is available, a split-
-# -sample validation or a k-fold cross-validation should be performed.
 
 R2, MAE, MBE, RMSE
 
@@ -5335,13 +5241,6 @@ g = sns.catplot(
     hue = 'IGBP'
 )
 
-# # Set individual box colors using ax.patches
-# for ax, color in zip(g.axes.flatten(), palette):
-#     for patch in ax.patches:
-#         patch.set_facecolor(color)
-#         patch.set_edgecolor("black")
-#         patch.set_alpha(0.9)
-
 g.axes[0].set_ylabel('')
 
 g.fig.suptitle(title_name, y=0.9, fontsize=14)
@@ -5389,19 +5288,6 @@ dfp = pd.concat([
     ufluxv2[['RECOmML']].drop_vars('spatial_ref').rename({'RECOmML': 'UFLUXv2_Reco'}).mean(dim = ['longitude', 'latitude']).to_dataframe(),
 ], axis = 1)
 
-# dfp = pd.concat([
-#     (ufluxv2e['reco'].where((~trendy_reco['Trendy_Reco'].isnull()) & (~ufluxv2['RECOmML'].isnull()), np.nan) * coef_mat).drop_vars('spatial_ref').rename({'reco': 'UFLUXv2e_Reco', 'reco_25th': 'UFLUXv2e_Reco_25th', 'reco_75th': 'UFLUXv2e_Reco_75th'}).sum(dim = ['longitude', 'latitude']).to_dataframe() / coef_PgC_gC * 365,
-#     (trendy_reco.where((~trendy_reco['Trendy_Reco'].isnull()) & (~ufluxv2['RECOmML'].isnull()), np.nan) * coef_mat).sum(dim = ['longitude', 'latitude']).to_dataframe() / coef_PgC_gC * 365,
-#     (ufluxv2.where((~trendy_reco['Trendy_Reco'].isnull()) & (~ufluxv2['RECOmML'].isnull()), np.nan)[['RECOmML']] * coef_mat).drop_vars('spatial_ref').rename({'RECOmML': 'UFLUXv2_Reco'}).sum(dim = ['longitude', 'latitude']).to_dataframe() / coef_PgC_gC * 365,
-# ], axis = 1)
-
-# # colorful:
-# ax.plot(dfp.index, dfp['UFLUXv2_Reco'], c = colors[0], label = 'UFLUXv2_Reco')
-# ax.plot(dfp.index, dfp['UFLUXv2e_Reco'], c = colors[1], label = 'UFLUXv2e_Reco')
-# ax.fill_between(dfp.index, dfp['UFLUXv2e_Reco_25th'], dfp['UFLUXv2e_Reco_75th'], color = colors[1], alpha = 0.2)
-# ax.plot(dfp.index, dfp['Trendy_Reco'], c = colors[2], label = 'Trendy_Reco')
-# ax.fill_between(dfp.index, dfp['Trendy_Reco_25th'], dfp['Trendy_Reco_75th'], color = colors[2], alpha = 0.2)
-# grey:
 ax.plot(dfp.index, dfp['UFLUXv2_Reco'], 'k-', label = 'UFLUXv2_Reco')
 ax.plot(dfp.index, dfp['UFLUXv2e_Reco'], 'k--', label = 'UFLUXv2e_Reco')
 ax.plot(dfp.index, dfp['Trendy_Reco'], 'k:', label = 'Trendy_Reco')
@@ -5418,13 +5304,6 @@ dfp = pd.concat([
     ufluxv2[['RECOmML']].where(cond, np.nan).drop_vars('spatial_ref').rename({'RECOmML': 'UFLUXv2_Reco'}).median(dim = ['longitude', 'latitude']).to_dataframe(),
 ], axis = 1)
 
-# # colorful:
-# ax.plot(dfp.index, dfp['UFLUXv2_Reco'], c = colors[0], label = 'UFLUXv2_Reco')
-# ax.plot(dfp.index, dfp['UFLUXv2e_Reco'], c = colors[1], label = 'UFLUXv2e_Reco')
-# ax.fill_between(dfp.index, dfp['UFLUXv2e_Reco_25th'], dfp['UFLUXv2e_Reco_75th'], color = colors[1], alpha = 0.2)
-# ax.plot(dfp.index, dfp['Trendy_Reco'], c = colors[2], label = 'Trendy_Reco')
-# ax.fill_between(dfp.index, dfp['Trendy_Reco_25th'], dfp['Trendy_Reco_75th'], color = colors[2], alpha = 0.2)
-# grey:
 ax.plot(dfp.index, dfp['UFLUXv2_Reco'], 'k-', label = 'UFLUXv2_Reco')
 ax.plot(dfp.index, dfp['UFLUXv2e_Reco'], 'k--', label = 'UFLUXv2e_Reco')
 ax.plot(dfp.index, dfp['Trendy_Reco'], 'k:', label = 'Trendy_Reco')
@@ -5443,13 +5322,7 @@ dfp = pd.concat([
     ).sum(dim = ['longitude', 'latitude']).to_dataframe() / coef_PgC_gC * 365,
 ], axis = 1)
 
-# # colorful:
-# ax.plot(dfp.index, dfp['UFLUXv2_Reco'], c = colors[0], label = 'UFLUXv2_Reco')
-# ax.plot(dfp.index, dfp['UFLUXv2e_Reco'], c = colors[1], label = 'UFLUXv2e_Reco')
-# ax.fill_between(dfp.index, dfp['UFLUXv2e_Reco_25th'], dfp['UFLUXv2e_Reco_75th'], color = colors[1], alpha = 0.2)
-# ax.plot(dfp.index, dfp['Trendy_Reco'], c = colors[2], label = 'Trendy_Reco')
-# ax.fill_between(dfp.index, dfp['Trendy_Reco_25th'], dfp['Trendy_Reco_75th'], color = colors[2], alpha = 0.2)
-# grey:
+
 ax.plot(dfp.index, dfp['UFLUXv2_Reco'], 'k-', label = 'UFLUXv2_Reco')
 ax.plot(dfp.index, dfp['UFLUXv2e_Reco'], 'k--', label = 'UFLUXv2e_Reco')
 ax.plot(dfp.index, dfp['Trendy_Reco'], 'k:', label = 'Trendy_Reco')
