@@ -1639,6 +1639,98 @@ for dt in tqdm(df_path_MODIS.index):
 ## Functions
 """
 
+class CarbonNet(torch.nn.Module):
+    def __init__(self, in_dim=4, hidden=64):
+        super().__init__()
+        self.net = torch.nn.Sequential(
+            torch.nn.Linear(in_dim, hidden),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden, hidden),
+            torch.nn.ReLU()
+        )
+        self.gpp = torch.nn.Linear(hidden, 1)
+        self.reco = torch.nn.Linear(hidden, 1)
+
+    def forward(self, x):
+        h = self.net(x)
+        GPP = self.gpp(h).squeeze()
+        Reco = self.reco(h).squeeze()
+        return GPP, Reco
+
+def physics_loss(
+    model, X,
+    GPP_obs, Reco_obs, NEE_obs,
+    Tair, PAR, VPD, SWC,
+    T_opt=30.0
+):
+    mse = torch.nn.MSELoss()
+
+    # ----- main forward (for backward) -----
+    GPP_hat, Reco_hat = model(X)
+
+    # data fitting
+    L_data = mse(GPP_hat, GPP_obs) + mse(Reco_hat, Reco_obs)
+
+    # non-negativity
+    L_nonneg = torch.mean(torch.relu(-GPP_hat)) + \
+               torch.mean(torch.relu(-Reco_hat))
+
+    # night-time GPP constraint
+    night = PAR == 0
+    L_night = mse(
+        GPP_hat[night],
+        torch.zeros_like(GPP_hat[night])
+    ) if night.any() else 0.0
+
+    # mass balance
+    NEE_hat = Reco_hat - GPP_hat
+    L_mass = mse(NEE_hat, NEE_obs)
+
+    # ----- physics forward (separate graph) -----
+    Tair_p = Tair.clone().detach().requires_grad_(True)
+    X_p = torch.stack([Tair_p, PAR, VPD, SWC], dim=1)
+
+    _, Reco_p = model(X_p)
+
+    dReco_dT = torch.autograd.grad(
+        Reco_p.sum(), Tair_p,
+        create_graph=True
+    )[0]
+
+    # temperature response: Reco increases only below T_opt
+    mask = Tair_p < T_opt
+    L_temp = torch.mean(
+        torch.relu(-dReco_dT[mask])
+    ) if mask.any() else 0.0
+
+    # total loss
+    L = (
+        L_data
+        + L_nonneg
+        + 5.0 * L_night
+        + L_mass
+        + 0.2 * L_temp
+    )
+    return L
+
+model = CarbonNet()
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+for epoch in range(1000):
+    optimizer.zero_grad()
+
+    loss = physics_loss(
+        model, X,
+        GPP_obs, Reco_obs, NEE_obs,
+        Tair, PAR, VPD, SWC
+    )
+
+    loss.backward()
+    optimizer.step()
+
+    if epoch % 100 == 0:
+        print(f"Epoch {epoch:4d} | Loss = {loss.item():.2f}")
+
 def get_4VIs(data, r_name, nir_name, as_one = True):
     r = data[r_name]
     nir = data[nir_name]
